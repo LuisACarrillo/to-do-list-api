@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euxo pipefail
+dnf install -y git python3 python3-pip
+git clone ${repo_url} /opt/to-do-list-api
+python3 -m venv /opt/to-do-list-api/.venv
+/opt/to-do-list-api/.venv/bin/pip install -r /opt/to-do-list-api/requirements.txt
+cat > /etc/systemd/system/todo-api.service <<'UNIT'
+[Unit]
+Description=To-Do List API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/to-do-list-api
+ExecStart=/opt/to-do-list-api/.venv/bin/python app.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now todo-api.service
