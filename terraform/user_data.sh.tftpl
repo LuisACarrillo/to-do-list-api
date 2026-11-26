@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euxo pipefail
-dnf install -y git python3 python3-pip
+dnf install -y git python3 python3-pip unzip
 git clone ${repo_url} /opt/to-do-list-api
 python3 -m venv /opt/to-do-list-api/.venv
-/opt/to-do-list-api/.venv/bin/pip install -r /opt/to-do-list-api/requirements.txt
+/opt/to-do-list-api/.venv/bin/pip install -r /opt/to-do-list-api/src/requirements.txt
 cat > /etc/systemd/system/todo-api.service <<'UNIT'
 [Unit]
 Description=To-Do List API
@@ -12,7 +12,10 @@ Wants=network-online.target
 
 [Service]
 WorkingDirectory=/opt/to-do-list-api
-ExecStart=/opt/to-do-list-api/.venv/bin/python app.py
+ExecStart=/opt/to-do-list-api/.venv/bin/python src/main.py
+Environment=APP_VERSION=${app_version}
+Environment=SECRET_ID=${secret_id}
+Environment=AWS_REGION=${aws_region}
 Restart=always
 RestartSec=3
 
