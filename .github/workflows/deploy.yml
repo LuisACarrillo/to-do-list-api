@@ -1,0 +1,101 @@
+name: deploy
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Find the EC2 instance
+        id: ec2
+        run: |
+          set -euo pipefail
+          IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=todo-list-api" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
+          if [ -z "$IP" ] || [ "$IP" = "None" ]; then
+            echo "No hay una instancia todo-list-api en ejecución."
+            exit 1
+          fi
+          echo "ip=$IP" >> "$GITHUB_OUTPUT"
+
+      - name: Download the release zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          for _ in 1 2 3 4 5; do
+            if gh release download "$TAG" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --pattern "to-do-list-api.zip" \
+              --output release.zip; then
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
+
+      - name: Install the release and restart the API
+        env:
+          EC2_IP: ${{ steps.ec2.outputs.ip }}
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > "$RUNNER_TEMP/key.pem"
+          SCP=(scp -i "$RUNNER_TEMP/key.pem" -o StrictHostKeyChecking=no)
+          SSH=(ssh -i "$RUNNER_TEMP/key.pem" -o StrictHostKeyChecking=no)
+          "${SCP[@]}" release.zip "ec2-user@${EC2_IP}:/tmp/to-do-list-api.zip"
+          "${SSH[@]}" "ec2-user@${EC2_IP}" "TAG='${TAG}' bash -s" <<'EOF'
+          set -euxo pipefail
+          sudo dnf install -y unzip
+          sudo systemctl stop todo-api.service || true
+          rm -rf /tmp/todo-release
+          mkdir -p /tmp/todo-release
+          unzip -q -o /tmp/to-do-list-api.zip -d /tmp/todo-release
+          sudo rm -rf /opt/to-do-list-api
+          sudo mv /tmp/todo-release/to-do-list-api /opt/to-do-list-api
+          sudo python3 -m venv /opt/to-do-list-api/.venv
+          sudo /opt/to-do-list-api/.venv/bin/pip install -r /opt/to-do-list-api/src/requirements.txt
+          sudo mkdir -p /etc/systemd/system/todo-api.service.d
+          sudo tee /etc/systemd/system/todo-api.service.d/version.conf >/dev/null <<UNIT
+          [Service]
+          Environment=APP_VERSION=${TAG}
+          UNIT
+          sudo systemctl daemon-reload
+          sudo systemctl restart todo-api.service
+          EOF
+
+      - name: Confirm the deployed version
+        env:
+          EC2_IP: ${{ steps.ec2.outputs.ip }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            BODY=$(curl -fsS "http://${EC2_IP}:8000/version" || true)
+            echo "$BODY"
+            if printf '%s' "$BODY" | grep -q "\"version\": \"${TAG}\""; then
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "La instancia no respondió ${TAG} en /version."
+          exit 1
