@@ -38,4 +38,6 @@ jobs:
 
       - name: Terraform destroy
         working-directory: terraform
+        env:
+          TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
         run: terraform destroy -input=false -auto-approve

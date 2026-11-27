@@ -21,3 +21,8 @@ variable "app_version" {
   type        = string
   default     = "dev"
 }
+
+variable "alert_email" {
+  description = "Correo que recibe las alarmas de CloudWatch. Hay que confirmar la suscripción de SNS."
+  type        = string
+}

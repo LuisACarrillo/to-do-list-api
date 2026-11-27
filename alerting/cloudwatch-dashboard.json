@@ -1,0 +1,55 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "CPUUtilization",
+        "view": "timeSeries",
+        "region": "${aws_region}",
+        "metrics": [
+          ["AWS/EC2", "CPUUtilization", "InstanceId", "${instance_id}"]
+        ],
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 0,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "RDSErrors",
+        "view": "timeSeries",
+        "region": "${aws_region}",
+        "metrics": [
+          ["TodoList", "RDSErrors"]
+        ],
+        "period": 60,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 0,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "TasksCreated",
+        "view": "timeSeries",
+        "region": "${aws_region}",
+        "metrics": [
+          ["TodoList", "TasksCreated"]
+        ],
+        "period": 300,
+        "stat": "Sum"
+      }
+    }
+  ]
+}

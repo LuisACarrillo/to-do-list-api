@@ -27,3 +27,13 @@ output "ssh_command" {
   description = "Comando para entrar por SSH con la llave generada."
   value       = "ssh -i terraform/todo-list-api.pem ec2-user@${aws_instance.todo.public_ip}"
 }
+
+output "alerts_topic_arn" {
+  description = "Tópico SNS al que avisan las tres alarmas."
+  value       = aws_sns_topic.alerts.arn
+}
+
+output "dashboard_name" {
+  description = "Dashboard de CloudWatch con las tres métricas."
+  value       = aws_cloudwatch_dashboard.todo.dashboard_name
+}
