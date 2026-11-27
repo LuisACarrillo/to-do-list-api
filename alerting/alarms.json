@@ -1,0 +1,40 @@
+{
+  "topic": "todo-list-api-alerts",
+  "alarms": [
+    {
+      "name": "todo-list-api-cpu-high",
+      "namespace": "AWS/EC2",
+      "metric": "CPUUtilization",
+      "statistic": "Average",
+      "comparison": "GreaterThanThreshold",
+      "threshold": 80,
+      "period_seconds": 300,
+      "evaluation_periods": 2,
+      "why": "Métrica nativa de la EC2. Dos periodos seguidos de 5 minutos por encima del 80% indican saturación sostenida. La acción es revisar el dashboard y, si se mantiene, usar un tipo de instancia más grande."
+    },
+    {
+      "name": "todo-list-api-rds-errors",
+      "namespace": "TodoList",
+      "metric": "RDSErrors",
+      "statistic": "Sum",
+      "comparison": "GreaterThanOrEqualToThreshold",
+      "threshold": 1,
+      "period_seconds": 60,
+      "evaluation_periods": 1,
+      "treat_missing_data": "notBreaching",
+      "why": "La aplicación suma 1 en cada fallo al leer o escribir en RDS. Un solo error ya importa porque las tareas dejan de persistirse. Se valida deteniendo la instancia RDS. La acción es revisar el estado de RDS y volver a iniciarla."
+    },
+    {
+      "name": "todo-list-api-tasks-spike",
+      "namespace": "TodoList",
+      "metric": "TasksCreated",
+      "statistic": "Sum",
+      "comparison": "GreaterThanOrEqualToThreshold",
+      "threshold": 50,
+      "period_seconds": 300,
+      "evaluation_periods": 1,
+      "treat_missing_data": "notBreaching",
+      "why": "Cuenta las tareas creadas con éxito. Cincuenta en cinco minutos está muy por encima del uso de una lista personal e indica un cliente en bucle o abuso de POST /tasks. La acción es identificar el origen de esas llamadas."
+    }
+  ]
+}
