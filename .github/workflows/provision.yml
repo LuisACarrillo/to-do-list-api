@@ -28,15 +28,8 @@ jobs:
         working-directory: terraform/bootstrap
         run: |
           set -euo pipefail
-          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-          BUCKET="todo-list-tfstate-${ACCOUNT}"
-          if aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1 \
-            && aws dynamodb describe-table --table-name todo-list-tfstate-lock >/dev/null 2>&1; then
-            echo "El bucket y la tabla de lock ya existen."
-          else
-            terraform init
-            terraform apply -auto-approve
-          fi
+          terraform init -input=false
+          terraform apply -input=false -auto-approve
 
       - name: Terraform init
         working-directory: terraform
