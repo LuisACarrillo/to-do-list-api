@@ -1,0 +1,59 @@
+name: provision
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    name: provision
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.1"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Bootstrap remote state
+        working-directory: terraform/bootstrap
+        run: |
+          set -euo pipefail
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET="todo-list-tfstate-${ACCOUNT}"
+          if aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1 \
+            && aws dynamodb describe-table --table-name todo-list-tfstate-lock >/dev/null 2>&1; then
+            echo "El bucket y la tabla de lock ya existen."
+          else
+            terraform init
+            terraform apply -auto-approve
+          fi
+
+      - name: Terraform init
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          terraform init -input=false \
+            -backend-config="bucket=todo-list-tfstate-${ACCOUNT}" \
+            -backend-config="key=todo-list-api/terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="dynamodb_table=todo-list-tfstate-lock" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform apply
+        working-directory: terraform
+        run: terraform apply -input=false -auto-approve
+
+      - name: Outputs
+        working-directory: terraform
+        run: terraform output
