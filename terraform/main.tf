@@ -185,58 +185,13 @@ resource "aws_secretsmanager_secret_version" "db" {
   })
 }
 
-resource "aws_iam_role" "todo" {
-  name = "todo-list-api-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "ec2.amazonaws.com" }
-        Action    = "sts:AssumeRole"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy" "todo" {
-  name = "todo-list-api-policy"
-  role = aws_iam_role.todo.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue"]
-        Resource = aws_secretsmanager_secret.db.arn
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["cloudwatch:PutMetricData"]
-        Resource = "*"
-        Condition = {
-          StringEquals = {
-            "cloudwatch:namespace" = "TodoList"
-          }
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_instance_profile" "todo" {
-  name = "todo-list-api-profile"
-  role = aws_iam_role.todo.name
-}
-
+# El Learner Lab niega iam:CreateRole. LabInstanceProfile ya existe y usa LabRole.
 resource "aws_instance" "todo" {
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.instance_type
   key_name                    = aws_key_pair.todo.key_name
   vpc_security_group_ids      = [aws_security_group.todo.id]
-  iam_instance_profile        = aws_iam_instance_profile.todo.name
+  iam_instance_profile        = "LabInstanceProfile"
   associate_public_ip_address = true
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
